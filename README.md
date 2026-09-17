@@ -5,7 +5,7 @@ and get back the SQL it wrote (auditable), the rows, and a chart spec —
 streamed stage-by-stage over SSE, with a self-correcting LLM→SQL→execute
 repair loop and a SELECT-only safety gate.
 
-> Live demo: `<CLOUD RUN URL>` · [API docs](<CLOUD RUN URL>/docs) ·
+> Live demo: `https://quackquery-yzzxrxetcq-uc.a.run.app` · [API docs](https://quackquery-yzzxrxetcq-uc.a.run.app/docs) ·
 > Run locally in 60 seconds — see [Run locally](#run-locally)
 
 ```
