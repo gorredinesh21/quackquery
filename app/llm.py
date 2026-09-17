@@ -134,8 +134,14 @@ class VertexLLM:
                f"models/{self.model}:generateContent")
         payload = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": temperature,
-                                 "maxOutputTokens": max_tokens},
+            "generationConfig": {
+                "temperature": temperature,
+                "maxOutputTokens": max_tokens,
+                # gemini-2.5 is a thinking model; SQL/JSON tasks don't need
+                # it and thinking tokens can eat the whole budget (observed:
+                # MAX_TOKENS with zero visible parts)
+                "thinkingConfig": {"thinkingBudget": 0},
+            },
         }
         r = None
         for attempt in range(1, config.LLM_MAX_ATTEMPTS + 1):
@@ -152,7 +158,13 @@ class VertexLLM:
             raise LLMError(f"LLM API {getattr(r, 'status_code', '?')}: "
                            f"{getattr(r, 'text', '')[:200]}")
         try:
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            cand = r.json()["candidates"][0]
+            for part in cand.get("content", {}).get("parts", []):
+                if "text" in part:
+                    return part["text"].strip()
+            raise LLMError(
+                f"LLM returned no text (finishReason="
+                f"{cand.get('finishReason', '?')}); raise maxOutputTokens")
         except (KeyError, IndexError) as e:
             raise LLMError(f"unexpected LLM response shape: {e}")
 
