@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+data/*.duckdb
+data/*.wal
+data/datasets.json
+data/upload_*.csv
+out/
+.env

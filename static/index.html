@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuackQuery — ask your data anything</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+         background: #0b1020; color: #e6e9f2; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 2rem; margin: 0 0 6px; }
+  h1 span { color: #f5c542; }
+  .sub { color: #9aa3b8; margin-bottom: 28px; }
+  .card { background: #131a30; border: 1px solid #232d4d; border-radius: 12px;
+          padding: 18px; margin-bottom: 16px; }
+  label { display: block; font-size: .8rem; text-transform: uppercase;
+          letter-spacing: .08em; color: #8fa0c9; margin-bottom: 8px; }
+  select, input[type=text] { width: 100%; padding: 10px 12px; border-radius: 8px;
+        border: 1px solid #2b3763; background: #0e1428; color: #e6e9f2; font-size: 1rem; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  button { margin-top: 14px; width: 100%; padding: 12px; font-size: 1rem; font-weight: 600;
+           border: 0; border-radius: 8px; background: #f5c542; color: #1c1a05; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: wait; }
+  #log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem;
+         line-height: 1.55; }
+  .ev { padding: 6px 10px; border-left: 3px solid #2b3763; margin: 6px 0;
+        background: #0e1428; border-radius: 0 8px 8px 0; white-space: pre-wrap; }
+  .ev.stage, .ev.retry { border-color: #4f7cff; color: #9db7ff; }
+  .ev.sql { border-color: #f5c542; color: #ffe29a; }
+  .ev.rows { border-color: #37d67a; color: #a9f0c6; }
+  .ev.chart, .ev.answer { border-color: #b388ff; color: #d6c6ff; }
+  .ev.done { border-color: #37d67a; color: #7fe0a8; font-weight: 700; }
+  .ev.error { border-color: #ff5c7a; color: #ffb3c2; }
+  table { border-collapse: collapse; margin-top: 8px; width: 100%; font-size: .85rem; }
+  th, td { border: 1px solid #2b3763; padding: 5px 9px; text-align: left; }
+  th { background: #182142; }
+  code { color: #ffe29a; }
+  a { color: #7fa8ff; }
+  .hint { font-size: .85rem; color: #8fa0c9; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Quack<span>Query</span></h1>
+  <p class="sub">Upload any CSV → ask in plain English → auditable SQL, rows, and a chart spec,
+  streamed stage-by-stage (SSE). Self-correcting text-to-SQL over DuckDB.</p>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="ds">Dataset</label>
+        <select id="ds"><option value="">loading demos…</option></select>
+      </div>
+      <div>
+        <label for="q">Question</label>
+        <input id="q" type="text" placeholder="e.g. top 5 sectors by total funding"
+               value="top 5 sectors by total funding amount">
+      </div>
+    </div>
+    <div class="hint">Samples: "how many orders per payment method" ·
+      "which team won the most matches" · "average revenue by category" ·
+      "which city has the highest total funding"</div>
+    <button id="go">Ask</button>
+  </div>
+
+  <div class="card">
+    <label>Pipeline (live SSE)</label>
+    <div id="log"><div class="ev stage">pick a dataset and ask something ↑</div></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+function ev(type, text) {
+  const d = document.createElement("div");
+  d.className = "ev " + type;
+  d.textContent = text;
+  $("log").appendChild(d);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+function tableHTML(columns, rows) {
+  if (!rows || !rows.length) return "(0 rows)";
+  let h = "<table><tr>" + columns.map(c => "<th>" + c + "</th>").join("") + "</tr>";
+  for (const r of rows.slice(0, 15))
+    h += "<tr>" + r.map(v => "<td>" + v + "</td>").join("") + "</tr>";
+  return h + "</table>" + (rows.length > 15 ? `<p>${rows.length} rows (15 shown)</p>` : "");
+}
+
+async function loadDatasets() {
+  try {
+    const r = await fetch("/api/datasets/demo");
+    const list = await r.json();
+    $("ds").innerHTML = list.map(d =>
+      `<option value="${d.dataset_id}">${d.name} (${d.row_count} rows)</option>`).join("");
+    ev("stage", `loaded ${list.length} demo datasets`);
+  } catch (e) { ev("error", "failed to load demos: " + e); }
+}
+
+$("go").onclick = async () => {
+  const dataset_id = $("ds").value, question = $("q").value.trim();
+  if (!dataset_id || !question) return;
+  $("log").innerHTML = "";
+  $("go").disabled = true;
+  ev("stage", `POST /api/query/stream {dataset: ${dataset_id}, question: "${question}"}`);
+  try {
+    const resp = await fetch("/api/query/stream", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({dataset_id, question})
+    });
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        const line = chunk.split("\n").find(l => l.startsWith("data:"));
+        if (!line) continue;
+        handle(JSON.parse(line.slice(5)));
+      }
+    }
+  } catch (e) { ev("error", String(e)); }
+  $("go").disabled = false;
+};
+
+function handle(m) {
+  switch (m.type) {
+    case "stage":        ev("stage", `▸ ${m.name} (${m.dataset ?? ""})`); break;
+    case "sql":          ev("sql", `[attempt ${m.attempt}] ${m.sql}`); break;
+    case "guard_error":  ev("error", `guard: ${m.error}`); break;
+    case "exec_error":   ev("error", `exec: ${m.error}`); break;
+    case "retry":        ev("retry", `↻ self-correcting (attempt ${m.attempt})…`); break;
+    case "rows":         ev("rows", `${m.row_count} rows` + "\n" + tableHTML(m.columns, m.rows)); break;
+    case "chart":        ev("chart", m.spec ? `chart: ${m.spec.mark} x=${m.spec.x} y=${m.spec.y}` : "chart: none"); break;
+    case "answer":       ev("answer", "answer: " + m.text); break;
+    case "done":         ev("done", `done in ${m.timing_ms}ms · attempts=${m.attempts}${m.cached ? " · cached" : ""}`); break;
+    case "error":        ev("error", `fatal: ${m.error}`); break;
+  }
+}
+loadDatasets();
+</script>
+</body>
+</html>
