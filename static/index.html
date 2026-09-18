@@ -3,16 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QuackQuery — ask your data anything</title>
+<title>QuackQuery — ask your CSV questions in plain English</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
          background: #0b1020; color: #e6e9f2; }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
-  h1 { font-size: 2rem; margin: 0 0 6px; }
-  h1 span { color: #f5c542; }
-  .sub { color: #9aa3b8; margin-bottom: 28px; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 28px 20px 60px; }
+  .brand { font-size: .95rem; font-weight: 700; letter-spacing: .06em;
+           color: #8fa0c9; margin-bottom: 10px; }
+  .brand b { color: #f5c542; }
+  h1 { font-size: clamp(1.6rem, 4.5vw, 2.2rem); line-height: 1.2; margin: 0 0 10px; }
+  .sub { color: #9aa3b8; margin: 0 0 22px; max-width: 46rem; line-height: 1.55; }
+  .sub code { color: #ffe29a; }
+
+  .steps { display: flex; gap: 12px; margin: 0 0 22px; }
+  .step { flex: 1; background: #131a30; border: 1px solid #232d4d; border-radius: 10px;
+          padding: 12px 14px; font-size: .88rem; color: #c3cbde; line-height: 1.45; }
+  .step b { display: block; color: #e6e9f2; margin-bottom: 3px; font-size: .95rem; }
+  .step .n { display: inline-flex; align-items: center; justify-content: center;
+             width: 22px; height: 22px; border-radius: 50%; background: #f5c542;
+             color: #1c1a05; font-weight: 700; font-size: .8rem; margin-right: 7px;
+             vertical-align: middle; }
+  @media (max-width: 640px) { .steps { flex-direction: column; } .step { padding: 10px 12px; } }
+
   .card { background: #131a30; border: 1px solid #232d4d; border-radius: 12px;
           padding: 18px; margin-bottom: 16px; }
   label { display: block; font-size: .8rem; text-transform: uppercase;
@@ -20,33 +34,72 @@
   select, input[type=text] { width: 100%; padding: 10px 12px; border-radius: 8px;
         border: 1px solid #2b3763; background: #0e1428; color: #e6e9f2; font-size: 1rem; }
   .row { display: flex; gap: 12px; }
-  .row > div { flex: 1; }
+  .row > div { flex: 1; min-width: 0; }
+  @media (max-width: 640px) { .row { flex-direction: column; } }
   button { margin-top: 14px; width: 100%; padding: 12px; font-size: 1rem; font-weight: 600;
            border: 0; border-radius: 8px; background: #f5c542; color: #1c1a05; cursor: pointer; }
   button:disabled { opacity: .5; cursor: wait; }
+  .uploadbtn { margin-top: 14px; display: inline-block; padding: 9px 14px; font-size: .88rem;
+               border: 1px dashed #4f7cff; border-radius: 8px; background: transparent;
+               color: #9db7ff; cursor: pointer; width: auto; text-transform: none; }
+  .uploadbtn:hover { background: #16204a; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { margin: 0; width: auto; padding: 7px 12px; font-size: .85rem; font-weight: 500;
+          background: #0e1428; color: #c3cbde; border: 1px solid #2b3763;
+          border-radius: 999px; cursor: pointer; }
+  .chip:hover { border-color: #f5c542; color: #ffe29a; }
+  body.busy .chip { opacity: .45; pointer-events: none; }
+
   #log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem;
          line-height: 1.55; }
-  .ev { padding: 6px 10px; border-left: 3px solid #2b3763; margin: 6px 0;
-        background: #0e1428; border-radius: 0 8px 8px 0; white-space: pre-wrap; }
-  .ev.stage, .ev.retry { border-color: #4f7cff; color: #9db7ff; }
-  .ev.sql { border-color: #f5c542; color: #ffe29a; }
-  .ev.rows { border-color: #37d67a; color: #a9f0c6; }
-  .ev.chart, .ev.answer { border-color: #b388ff; color: #d6c6ff; }
-  .ev.done { border-color: #37d67a; color: #7fe0a8; font-weight: 700; }
-  .ev.error { border-color: #ff5c7a; color: #ffb3c2; }
-  table { border-collapse: collapse; margin-top: 8px; width: 100%; font-size: .85rem; }
+  .ev { padding: 8px 12px; border-left: 3px solid #2b3763; margin: 8px 0;
+        background: #0e1428; border-radius: 0 8px 8px 0; white-space: pre-wrap;
+        word-break: break-word; }
+  .ev .tag { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em;
+             opacity: .75; display: block; margin-bottom: 2px; }
+  .ev.stage  { border-color: #4f7cff; color: #9db7ff; }
+  .ev.retry  { border-color: #4f7cff; color: #9db7ff; font-style: italic; }
+  .ev.sql    { border-color: #f5c542; color: #ffe29a; }
+  .ev.rows   { border-color: #37d67a; color: #a9f0c6; }
+  .ev.chart  { border-color: #b388ff; color: #d6c6ff; }
+  .ev.answer { border-color: #37d67a; }
+  .ev.done   { border-color: #37d67a; color: #7fe0a8; font-weight: 700; }
+  .ev.error  { border-color: #ff5c7a; color: #ffb3c2; font-weight: 600;
+               background: rgba(255, 92, 122, 0.12); }
+  .ev .answertext { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 1.02rem;
+                    color: #eef4ff; white-space: pre-wrap; }
+  table { border-collapse: collapse; margin-top: 8px; width: 100%; font-size: .85rem;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   th, td { border: 1px solid #2b3763; padding: 5px 9px; text-align: left; }
   th { background: #182142; }
-  code { color: #ffe29a; }
+  .muted { color: #8fa0c9; font-size: .78rem; }
   a { color: #7fa8ff; }
-  .hint { font-size: .85rem; color: #8fa0c9; margin-top: 6px; }
+
+  .trust { display: flex; gap: 12px; flex-wrap: wrap; }
+  .trust > div { flex: 1 1 240px; background: #0e1428; border: 1px solid #232d4d;
+                 border-radius: 10px; padding: 14px; font-size: .9rem; color: #c3cbde;
+                 line-height: 1.5; }
+  .trust b { color: #e6e9f2; display: block; margin-bottom: 4px; }
+  .trust code { color: #ffe29a; }
+  footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #232d4d;
+           color: #8fa0c9; font-size: .85rem; display: flex; gap: 8px; flex-wrap: wrap;
+           align-items: center; }
+  footer .dot { opacity: .5; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Quack<span>Query</span></h1>
-  <p class="sub">Upload any CSV → ask in plain English → auditable SQL, rows, and a chart spec,
-  streamed stage-by-stage (SSE). Self-correcting text-to-SQL over DuckDB.</p>
+  <div class="brand">QUACK<b>QUERY</b></div>
+  <h1>Ask your CSV questions in plain English</h1>
+  <p class="sub">QuackQuery turns your question into <code>SQL</code>, shows you the
+  query for full auditability, runs it, and answers in plain English — with a chart.
+  If the SQL fails, it self-corrects up to 3 times, and you see every attempt.</p>
+
+  <div class="steps">
+    <div class="step"><b><span class="n">1</span>Pick your data</b>Load a demo dataset below, or upload your own CSV — nothing leaves the server's DuckDB.</div>
+    <div class="step"><b><span class="n">2</span>Ask in English</b>Type any analytical question. No SQL knowledge needed.</div>
+    <div class="step"><b><span class="n">3</span>See everything</b>The exact SQL, the result rows, and the answer — streamed live, stage by stage.</div>
+  </div>
 
   <div class="card">
     <div class="row">
@@ -56,93 +109,308 @@
       </div>
       <div>
         <label for="q">Question</label>
-        <input id="q" type="text" placeholder="e.g. top 5 sectors by total funding"
-               value="top 5 sectors by total funding amount">
+        <input id="q" type="text" placeholder="e.g. how many orders per payment method"
+               autocomplete="off">
       </div>
     </div>
-    <div class="hint">Samples: "how many orders per payment method" ·
-      "which team won the most matches" · "average revenue by category" ·
-      "which city has the highest total funding"</div>
+    <div class="row" style="align-items:flex-end">
+      <div><label class="uploadbtn" for="up">…or upload your own CSV
+        <input id="up" type="file" accept=".csv" hidden></label></div>
+      <div class="muted" style="flex:2; margin-bottom: 4px;" id="upstatus"></div>
+    </div>
+    <div class="chips" id="chips"></div>
     <button id="go">Ask</button>
   </div>
 
-  <div class="card">
-    <label>Pipeline (live SSE)</label>
-    <div id="log"><div class="ev stage">pick a dataset and ask something ↑</div></div>
+  <div class="card" id="pipecard">
+    <label>Pipeline (live SSE — SQL is always shown)</label>
+    <div id="log"><div class="ev stage">pick a dataset, type a question (or click an example), then Ask.</div></div>
   </div>
+
+  <h2 style="font-size:1.15rem; margin: 26px 0 12px;">Why trust it</h2>
+  <div class="trust">
+    <div><b>The SQL is always shown</b>Every answer ships with the exact query that produced it. Audit the logic, not vibes.</div>
+    <div><b>Dangerous SQL is blocked</b>A deny-by-default guard rejects stacked queries, <code>PRAGMA</code>, and file-read functions (<code>read_csv</code>, <code>ATTACH</code>, …) before anything runs — DuckDB itself is read-only on top.</div>
+    <div><b>Wrong SQL self-repairs</b>When a query fails, the error is fed back for up to 3 repair passes — and you watch every attempt in the pipeline.</div>
+  </div>
+
+  <footer>
+    <a href="https://github.com/gorredinesh21/quackquery" target="_blank" rel="noopener">GitHub</a>
+    <span class="dot">·</span> FastAPI + DuckDB + Gemini on Cloud Run
+    <span class="dot">·</span> <a href="/docs" target="_blank" rel="noopener">API docs</a>
+  </footer>
 </div>
 
 <script>
+"use strict";
 const $ = id => document.getElementById(id);
-function ev(type, text) {
+const esc = s => String(s).replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// Example questions — each chip also selects the dataset it belongs to.
+const CHIPS = [
+  {q: "which team won the most matches",                  ds: "ipl_matches"},
+  {q: "how many orders per payment method",               ds: "ecommerce_orders"},
+  {q: "average revenue by category",                      ds: "ecommerce_orders"},
+  {q: "top 5 sectors by total funding amount",            ds: "indian_startup_funding"},
+  {q: "which city has the highest total funding",         ds: "indian_startup_funding"},
+];
+const dsNameToId = {};
+
+function ev(type, html) {
   const d = document.createElement("div");
   d.className = "ev " + type;
-  d.textContent = text;
+  d.innerHTML = html;
   $("log").appendChild(d);
-  window.scrollTo(0, document.body.scrollHeight);
+  return d;
+}
+function showError(msg) {
+  ev("error", '<span class="tag">error</span>' + esc(msg));
+  $("pipecard").scrollIntoView({behavior: "smooth", block: "nearest"});
 }
 function tableHTML(columns, rows) {
-  if (!rows || !rows.length) return "(0 rows)";
-  let h = "<table><tr>" + columns.map(c => "<th>" + c + "</th>").join("") + "</tr>";
+  if (!rows || !rows.length) return '<span class="muted">(0 rows)</span>';
+  let h = "<table><tr>" + columns.map(c => "<th>" + esc(c) + "</th>").join("") + "</tr>";
   for (const r of rows.slice(0, 15))
-    h += "<tr>" + r.map(v => "<td>" + v + "</td>").join("") + "</tr>";
-  return h + "</table>" + (rows.length > 15 ? `<p>${rows.length} rows (15 shown)</p>` : "");
+    h += "<tr>" + r.map(v => "<td>" + esc(v === null ? "NULL" : v) + "</td>").join("") + "</tr>";
+  h += "</table>";
+  if (rows.length > 15) h += '<span class="muted">' + rows.length + " rows (15 shown)</span>";
+  return h;
+}
+
+// Surface unexpected JS errors / unhandled rejections in the pipeline box.
+window.addEventListener("error", e => {
+  showError("Unexpected JS error: " + (e.message || e.type) +
+            (e.filename ? " (" + e.filename + ":" + e.lineno + ")" : ""));
+});
+window.addEventListener("unhandledrejection", e => {
+  const r = e.reason;
+  showError("Unhandled promise rejection: " + (r && r.message ? r.message : String(r)));
+});
+
+function setLoading(on) {
+  document.body.classList.toggle("busy", on);
+  $("go").disabled = on;
+  $("go").textContent = on ? "Asking…" : "Ask";
 }
 
 async function loadDatasets() {
   try {
     const r = await fetch("/api/datasets/demo");
+    if (!r.ok) throw new Error("HTTP " + r.status + " " + (await r.text()).slice(0, 200));
     const list = await r.json();
     $("ds").innerHTML = list.map(d =>
-      `<option value="${d.dataset_id}">${d.name} (${d.row_count} rows)</option>`).join("");
-    ev("stage", `loaded ${list.length} demo datasets`);
-  } catch (e) { ev("error", "failed to load demos: " + e); }
+      `<option value="${esc(d.dataset_id)}">${esc(d.name)} (${d.row_count} rows)</option>`).join("");
+    for (const d of list) dsNameToId[d.name] = d.dataset_id;
+    renderChips();
+    ev("stage", '<span class="tag">stage</span>▸ ' + list.length +
+       " demo datasets ready — click an example question below the ask box");
+  } catch (e) { showError("could not load demo datasets: " + e.message); }
 }
 
-$("go").onclick = async () => {
+function renderChips() {
+  $("chips").innerHTML = "";
+  for (const c of CHIPS) {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = c.q;
+    b.onclick = () => {
+      if (document.body.classList.contains("busy")) return;
+      if (!dsNameToId[c.ds]) { showError("dataset not loaded: " + c.ds); return; }
+      $("ds").value = dsNameToId[c.ds];
+      $("q").value = c.q;
+      ask();
+    };
+    $("chips").appendChild(b);
+  }
+}
+
+// ---- the query stream ----------------------------------------------------
+async function ask() {
+  if (document.body.classList.contains("busy")) return;
   const dataset_id = $("ds").value, question = $("q").value.trim();
-  if (!dataset_id || !question) return;
+  if (!dataset_id) { showError("pick a dataset first (or upload a CSV)."); return; }
+  if (!question)   { showError("type a question first — or click an example question."); return; }
+
   $("log").innerHTML = "";
-  $("go").disabled = true;
-  ev("stage", `POST /api/query/stream {dataset: ${dataset_id}, question: "${question}"}`);
+  setLoading(true);
+  $("pipecard").scrollIntoView({behavior: "smooth", block: "start"});
+  ev("stage", '<span class="tag">request</span>POST /api/query/stream {dataset: ' +
+     esc(dataset_id) + ', question: "' + esc(question) + '"}');
+
+  let sawAnswer = false, sawTerminal = false, qid = null, cached = false;
   try {
     const resp = await fetch("/api/query/stream", {
-      method: "POST", headers: {"Content-Type": "application/json"},
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({dataset_id, question})
     });
+    if (!resp.ok) {
+      const t = await resp.text();
+      let msg = t;
+      try { const d = JSON.parse(t).detail; msg = typeof d === "string" ? d : JSON.stringify(d); } catch (_) {}
+      throw new Error("HTTP " + resp.status + " " + resp.statusText + " — " +
+                      String(msg).slice(0, 300));
+    }
+    if (!resp.body) throw new Error("response has no stream body");
+
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
     let buf = "";
+    // SSE frames are separated by a BLANK LINE. sse-starlette writes CRLF
+    // line endings ("\r\n\r\n"); some servers use "\n\n" or "\r\r" — accept all.
+    const SEP = /\r\n\r\n|\n\n|\r\r/;
     while (true) {
       const {done, value} = await reader.read();
       if (done) break;
       buf += dec.decode(value, {stream: true});
-      let idx;
-      while ((idx = buf.indexOf("\n\n")) >= 0) {
-        const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
-        const line = chunk.split("\n").find(l => l.startsWith("data:"));
-        if (!line) continue;
-        handle(JSON.parse(line.slice(5)));
+      let m;
+      while ((m = SEP.exec(buf)) !== null) {
+        const frame = buf.slice(0, m.index);
+        buf = buf.slice(m.index + m[0].length);
+        // A frame: "event: <name>" lines plus one or more "data: <json>" lines.
+        const dataLines = frame.split(/\r\n|\n|\r/)
+          .filter(l => l.startsWith("data:"))
+          .map(l => l.slice(5).trim());
+        if (!dataLines.length) continue;
+        const payload = dataLines.join("\n");
+        let msg;
+        try { msg = JSON.parse(payload); }
+        catch (e) {
+          showError("bad SSE data line (not JSON): " + payload.slice(0, 200));
+          continue;
+        }
+        try {
+          handle(msg);
+          if (msg.type === "answer") sawAnswer = true;
+          if (msg.type === "done") { sawTerminal = true; qid = msg.qid || null; cached = !!msg.cached; }
+          if (msg.type === "error") sawTerminal = true;
+        } catch (e) { showError("error while rendering event '" + msg.type + "': " + e.message); }
       }
     }
-  } catch (e) { ev("error", String(e)); }
-  $("go").disabled = false;
-};
-
-function handle(m) {
-  switch (m.type) {
-    case "stage":        ev("stage", `▸ ${m.name} (${m.dataset ?? ""})`); break;
-    case "sql":          ev("sql", `[attempt ${m.attempt}] ${m.sql}`); break;
-    case "guard_error":  ev("error", `guard: ${m.error}`); break;
-    case "exec_error":   ev("error", `exec: ${m.error}`); break;
-    case "retry":        ev("retry", `↻ self-correcting (attempt ${m.attempt})…`); break;
-    case "rows":         ev("rows", `${m.row_count} rows` + "\n" + tableHTML(m.columns, m.rows)); break;
-    case "chart":        ev("chart", m.spec ? `chart: ${m.spec.mark} x=${m.spec.x} y=${m.spec.y}` : "chart: none"); break;
-    case "answer":       ev("answer", "answer: " + m.text); break;
-    case "done":         ev("done", `done in ${m.timing_ms}ms · attempts=${m.attempts}${m.cached ? " · cached" : ""}`); break;
-    case "error":        ev("error", `fatal: ${m.error}`); break;
+    // Server contract: stream always ends with done or error. If it just
+    // stopped, that's a contract breach — say so, never stay silent.
+    if (!sawTerminal)
+      showError("stream ended without a done or error event (server or connection dropped)");
+    else if (cached && !sawAnswer) await replayCached(qid);
+  } catch (e) {
+    showError("query failed: " + (e && e.message ? e.message : String(e)));
+  } finally {
+    setLoading(false);
   }
 }
+
+async function replayCached(qid) {
+  // A cache hit streams only a `done` event; fetch the full result.
+  try {
+    const r = await fetch("/api/query/" + encodeURIComponent(qid));
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const res = await r.json();
+    handle({type: "sql", sql: res.sql, attempt: 1});
+    handle({type: "rows", columns: res.columns, rows: res.rows, row_count: res.row_count});
+    handle({type: "chart", spec: res.chart});
+    handle({type: "answer", text: res.answer});
+    ev("done", '<span class="tag">done</span>served from cache (qid ' + esc(qid) + ")");
+  } catch (e) {
+    showError("cached result could not be replayed: " + e.message);
+  }
+}
+
+// Server event types (app/pipeline.py): stage | sql | guard_error | exec_error |
+// retry | rows | chart | answer | done | error — each `data:` line is JSON
+// with a "type" field.
+function handle(m) {
+  switch (m.type) {
+    case "stage":
+      ev("stage", '<span class="tag">stage</span>▸ ' + esc(m.name) +
+         (m.dataset ? " · " + esc(m.dataset) + " (" + m.row_count + " rows)" : ""));
+      break;
+    case "sql":
+      ev("sql", '<span class="tag">sql · attempt ' + Number(m.attempt) +
+         '</span>' + esc(m.sql));
+      break;
+    case "guard_error":
+      ev("error", '<span class="tag">guard rejected</span>' + esc(m.error));
+      break;
+    case "exec_error":
+      ev("error", '<span class="tag">exec error</span>' + esc(m.error));
+      break;
+    case "retry":
+      ev("retry", '<span class="tag">retry</span>↻ self-correcting (attempt ' +
+         Number(m.attempt) + ")…");
+      break;
+    case "rows":
+      ev("rows", '<span class="tag">rows</span>' + Number(m.row_count) +
+         " row(s) returned" + tableHTML(m.columns, m.rows));
+      break;
+    case "chart":
+      ev("chart", '<span class="tag">chart</span>' +
+         (m.spec ? esc(m.spec.mark) + " chart — x: " + esc(m.spec.x) +
+                  ", y: " + esc(m.spec.y)
+                 : "no chart for this result"));
+      break;
+    case "answer":
+      ev("answer", '<span class="tag">answer</span><span class="answertext">' +
+         esc(m.text || "(no answer text)") + "</span>");
+      break;
+    case "done":
+      ev("done", '<span class="tag">done</span>✓ done in ' + Number(m.timing_ms) +
+         "ms · attempts=" + Number(m.attempts) + (m.cached ? " · cached" : "") +
+         (m.qid ? " · qid " + esc(m.qid) : ""));
+      break;
+    case "error": {
+      let h = '<span class="tag">fatal</span>' + esc(m.error || "unknown error") +
+              (m.status ? " (HTTP " + Number(m.status) + ")" : "");
+      if (m.sql_attempts && m.sql_attempts.length) {
+        h += "\nSQL attempts:\n" + m.sql_attempts.map((s, i) =>
+               "  #" + (i + 1) + ": " + esc(s)).join("\n");
+      }
+      ev("error", h);
+      break;
+    }
+    default:
+      ev("stage", '<span class="tag">' + esc(m.type || "event") + "</span>" +
+         esc(JSON.stringify(m).slice(0, 300)));
+  }
+}
+
+// ---- CSV upload ----------------------------------------------------------
+$("up").onchange = async () => {
+  const f = $("up").files[0];
+  if (!f) return;
+  $("upstatus").textContent = 'uploading "' + f.name + '"…';
+  try {
+    const fd = new FormData();
+    fd.append("file", f);
+    const r = await fetch("/api/datasets", {method: "POST", body: fd});
+    if (!r.ok) {
+      const t = await r.text();
+      let msg = t;
+      try { const d = JSON.parse(t).detail; msg = typeof d === "string" ? d : JSON.stringify(d); } catch (_) {}
+      throw new Error("HTTP " + r.status + " — " + String(msg).slice(0, 200));
+    }
+    const d = await r.json();
+    dsNameToId[d.name] = d.dataset_id;
+    const opt = document.createElement("option");
+    opt.value = d.dataset_id;
+    opt.textContent = d.name + " (" + d.row_count + " rows)";
+    $("ds").appendChild(opt);
+    $("ds").value = d.dataset_id;
+    $("upstatus").textContent = 'uploaded "' + d.name + '" — ' + d.row_count +
+                                " rows, now ask away.";
+    ev("stage", '<span class="tag">upload</span>▸ dataset "' + esc(d.name) +
+       '" ready (' + d.row_count + " rows)");
+    $("q").focus();
+  } catch (e) {
+    $("upstatus").textContent = "";
+    showError("CSV upload failed: " + e.message);
+  } finally {
+    $("up").value = "";
+  }
+};
+
+$("go").onclick = ask;
+$("q").addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
 loadDatasets();
 </script>
 </body>
