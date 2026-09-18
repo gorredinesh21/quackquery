@@ -121,14 +121,16 @@ docker run -p 8010:8080 -e QUACK_LLM=mock quackquery
 | GET | `/api/datasets` · `/api/datasets/{id}` | list / get (incl. semantic catalog) |
 | GET | `/api/datasets/demo` | load the 3 bundled demo datasets (idempotent) |
 | POST | `/api/query` | `{dataset_id, question}` → SQL + rows + chart + answer |
+| GET | `/api/query` | recent query history (newest first, `?limit=1..100`) |
 | POST | `/api/query/stream` | same, as SSE stage events |
 | GET | `/api/query/{qid}` | replay a cached result |
-| GET | `/` · `/docs` | demo page · public OpenAPI |
+| GET | `/api/datasets/{id}/profile` | column profile: types, nulls, distinct, top values |
+| GET | `/` · `/demo` · `/data` · `/history` · `/about` | product pages · `/docs` public OpenAPI |
 
 ## Tests
 
 ```bash
-QUACK_LLM=mock pytest -q          # 66 tests, ~6s, zero API calls
+QUACK_LLM=mock pytest -q          # 86 tests, ~2s, zero API calls
 ```
 
 Coverage highlights: 34 guard cases (stacked/PRAGMA/file-function/CTE-smuggle

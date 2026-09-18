@@ -56,6 +56,7 @@ class TTLCache:
 
 result_cache = TTLCache()
 query_results: dict = {}   # qid -> cached full result (for GET /api/query/{qid})
+_history: list = []        # newest last: [{qid, ts}] — timestamp ledger for GET /api/query
 _query_lock = threading.Lock()
 
 
@@ -64,8 +65,36 @@ def remember_qid(qid: str, result: dict) -> None:
         if len(query_results) >= config.CACHE_MAX_ENTRIES:
             query_results.pop(next(iter(query_results)))
         query_results[qid] = result
+        _history.append({"qid": qid, "ts": time.time()})
+        if len(_history) > config.CACHE_MAX_ENTRIES:
+            del _history[:len(_history) - config.CACHE_MAX_ENTRIES]
 
 
 def get_qid(qid: str) -> dict | None:
     with _query_lock:
         return query_results.get(qid)
+
+
+def list_recent(limit: int = 50) -> list:
+    """Recent query history, newest first. Skips entries whose full result
+    has been evicted from the replay cache. Summary fields only."""
+    out = []
+    with _query_lock:
+        for rec in reversed(_history):
+            r = query_results.get(rec["qid"])
+            if r is None:
+                continue
+            out.append({
+                "qid": r.get("qid", rec["qid"]),
+                "ts": rec["ts"],
+                "dataset_id": r.get("dataset_id"),
+                "question": r.get("question"),
+                "sql": r.get("sql"),
+                "attempts": r.get("attempts"),
+                "timing_ms": r.get("timing_ms"),
+                "row_count": r.get("row_count"),
+                "answer": r.get("answer"),
+            })
+            if len(out) >= limit:
+                break
+    return out

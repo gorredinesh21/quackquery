@@ -12,9 +12,10 @@ import time
 import uuid
 from collections import defaultdict, deque
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
@@ -57,8 +58,6 @@ async def request_context(request: Request, call_next):
 # --------------------------------------------------------------------------
 
 _hits: dict[str, deque] = defaultdict(deque)
-
-from fastapi import Depends  # noqa: E402
 
 
 def rate_limit(request: Request) -> None:
@@ -173,6 +172,18 @@ def get_dataset(dataset_id: str):
     return m
 
 
+@app.get("/api/datasets/{dataset_id}/profile")
+def dataset_profile(dataset_id: str):
+    """Column-level data profile: type, null count, distinct count, and top
+    values (max 8) for low-cardinality columns — computed live in DuckDB."""
+    m = store.get(dataset_id)
+    if m is None:
+        raise HTTPException(404, f"unknown dataset_id: {dataset_id}")
+    prof = executor.profile_table(m["table"])
+    return {"dataset_id": dataset_id, "name": m["name"],
+            "row_count": prof["row_count"], "columns": prof["columns"]}
+
+
 @app.post("/api/query", dependencies=[Depends(rate_limit)])
 async def query(body: QueryIn):
     events = []
@@ -230,6 +241,19 @@ async def query_stream(body: QueryIn):
     return EventSourceResponse(gen())
 
 
+@app.get("/api/query")
+def list_queries(limit: int = Query(50, ge=1, le=100)):
+    """Recent query history, newest first, from the in-memory replay cache
+    (entries expire with it). Includes qid, question, SQL, attempts, timing."""
+    names = {m["dataset_id"]: m["name"] for m in store.list_all()}
+    items = []
+    for it in cache.list_recent(limit):
+        it = dict(it)
+        it["dataset"] = names.get(it.get("dataset_id"), it.get("dataset_id"))
+        items.append(it)
+    return items
+
+
 @app.get("/api/query/{qid}")
 def replay(qid: str):
     result = cache.get_qid(qid)
@@ -241,3 +265,32 @@ def replay(qid: str):
 @app.get("/")
 def index():
     return FileResponse(os.path.join(config.STATIC_DIR, "index.html"))
+
+
+# Pages (clean URLs, no .html). Static assets live under /static/.
+app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
+
+
+def _page(fname: str) -> FileResponse:
+    return FileResponse(os.path.join(config.STATIC_DIR, fname),
+                        media_type="text/html")
+
+
+@app.get("/demo", include_in_schema=False)
+def demo_page():
+    return _page("demo.html")
+
+
+@app.get("/data", include_in_schema=False)
+def data_page():
+    return _page("data.html")
+
+
+@app.get("/history", include_in_schema=False)
+def history_page():
+    return _page("history.html")
+
+
+@app.get("/about", include_in_schema=False)
+def about_page():
+    return _page("about.html")

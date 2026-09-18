@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About — QuackQuery</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 38 32'><ellipse cx='14' cy='22' rx='11' ry='8' fill='%234f46e5'/><circle cx='24' cy='11' r='8' fill='%234f46e5'/><path d='M31 9 37.5 11.2 31 13.4Z' fill='%23f59e0b'/><circle cx='26.5' cy='8.8' r='1.6' fill='white'/></svg>">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout">
+
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="QuackQuery home">
+      <svg viewBox="0 0 38 32" width="27" height="23" aria-hidden="true">
+        <ellipse cx="14" cy="22" rx="11" ry="8" fill="#4f46e5"/>
+        <ellipse cx="12" cy="21" rx="5.5" ry="3.5" fill="#6366f1"/>
+        <circle cx="24" cy="11" r="8" fill="#4f46e5"/>
+        <path d="M31 9 37.5 11.2 31 13.4Z" fill="#f59e0b"/>
+        <circle cx="26.5" cy="8.8" r="1.6" fill="#fff"/>
+      </svg>
+      <span class="brand-name">Quack<b>Query</b><span class="brand-sub">ask your data</span></span>
+    </a>
+    <nav class="nav">
+      <a href="/"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Overview</a>
+      <a href="/demo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z" fill="currentColor" stroke="none"/></svg>Try it</a>
+      <a href="/data"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10M15 10v10"/></svg>Data</a>
+      <a href="/history"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>History</a>
+      <a href="/about" class="active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.5"/></svg>About</a>
+    </nav>
+    <div class="sidebar-foot">
+      <a class="gh" href="https://github.com/gorredinesh21/quackquery" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
+      <div class="stack">FastAPI · DuckDB · Gemini</div>
+    </div>
+  </aside>
+
+  <main class="content">
+    <h1>How QuackQuery is built</h1>
+    <p class="muted">One small FastAPI service, one embedded database, one LLM —
+    and a guard in between. In plain language:</p>
+
+    <div class="card">
+      <h2>The pipeline</h2>
+      <div class="flow">
+        <div class="fbox"><b>Your question</b>plain English</div>
+        <div class="farrow">→</div>
+        <div class="fbox"><b>FastAPI</b>validates &amp; rate-limits</div>
+        <div class="farrow">→</div>
+        <div class="fbox"><b>Catalog</b>columns, types, samples</div>
+        <div class="farrow">→</div>
+        <div class="fbox"><b>Gemini</b>writes one SQL query</div>
+        <div class="farrow">→</div>
+        <div class="fbox hot"><b>Guard</b>read-only SELECT only</div>
+        <div class="farrow">→</div>
+        <div class="fbox"><b>DuckDB</b>runs it (10s timeout)</div>
+        <div class="farrow">→</div>
+        <div class="fbox"><b>Gemini</b>answer + chart spec</div>
+        <div class="farrow">→</div>
+        <div class="fbox"><b>SSE</b>streamed to you live</div>
+      </div>
+      <p class="small muted" style="margin:14px 0 0;">
+        <b>Self-correcting loop:</b> if the SQL fails (or the guard rejects it), the error text
+        goes back to Gemini for a repair pass — up to <b>3 repairs</b> (4 attempts total).
+        You see every attempt in the demo pipeline view; if all fail, the API returns
+        the full SQL attempt trail. Cached questions (30&nbsp;min TTL) skip straight to the answer.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Limits &amp; guardrails</h2>
+        <ul class="limitlist">
+          <li><span class="st st-info">rate</span>60 requests / minute per IP (sliding window)</li>
+          <li><span class="st st-warn">retry</span>3 LLM repair passes max (4 attempts total)</li>
+          <li><span class="st st-info">cache</span>identical question + dataset cached 30 min</li>
+          <li><span class="st st-info">size</span>CSV uploads up to 50 MB</li>
+          <li><span class="st st-info">time</span>10 s hard timeout per SQL execution</li>
+          <li><span class="st st-info">rows</span>responses capped at 200 rows (50 previewed in the UI)</li>
+          <li><span class="st st-err">guard</span>single read-only <code>SELECT</code> — DML/DDL,
+              <code>PRAGMA</code>, file functions and stacked statements are denied</li>
+          <li><span class="st st-info">scope</span>single instance, in-memory caches (by design)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Stack &amp; links</h2>
+        <p class="small" style="margin-top:0;"><b>FastAPI</b> serves the API and this site;
+        <b>DuckDB</b> is the embedded analytical database (each dataset is its own table);
+        <b>Gemini 2.5 Flash</b> on Vertex AI writes the SQL and the answers. A
+        <code>QUACK_LLM=mock</code> mode runs the identical pipeline with zero API calls —
+        that&rsquo;s what the test suite (66+ tests) exercises.</p>
+        <ul class="limitlist">
+          <li><a href="/docs" target="_blank" rel="noopener">API docs (OpenAPI)</a>
+              <span class="muted small">— every endpoint, live</span></li>
+          <li><a href="https://github.com/gorredinesh21/quackquery" target="_blank" rel="noopener">GitHub repository</a>
+              <span class="muted small">— source, CI, Dockerfile</span></li>
+          <li><a href="https://quackquery-yzzxrxetcq-uc.a.run.app" target="_blank" rel="noopener">Live deployment</a>
+              <span class="muted small">— Cloud Run (us-central1, scale-to-zero)</span></li>
+          <li><a href="https://duckdb.org/" target="_blank" rel="noopener">DuckDB</a> ·
+              <a href="https://fastapi.tiangolo.com/" target="_blank" rel="noopener">FastAPI</a> ·
+              <a href="https://cloud.google.com/vertex-ai" target="_blank" rel="noopener">Vertex AI</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>What happens to your CSV</h2>
+      <p style="margin-bottom:0;">It is uploaded once, profiled once (types, nulls, sample values —
+      see the <a href="/data">Data</a> page), stored as a table in the server&rsquo;s DuckDB file,
+      and used only to answer <em>your</em> questions. Nothing is sent to the LLM except column
+      metadata, sample values, your question, and (for the answer step) a preview of the result rows.
+      Delete the volume and it&rsquo;s gone — there is no external database.</p>
+    </div>
+  </main>
+</div>
+</body>
+</html>
